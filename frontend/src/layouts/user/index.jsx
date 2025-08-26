@@ -5,6 +5,7 @@ import { Routes, Route } from "react-router-dom";
 import TableScan from "views/user/TableScan";
 import UserDetails from "views/user/UserDetails";
 import GameSession from "views/user/GameSession";
+import QuickStart from "views/user/QuickStart";
 
 const UserLayout = () => {
     return (
@@ -12,6 +13,7 @@ const UserLayout = () => {
             <Routes>
                 <Route path="scan/:tableId" element={<TableScan />} />
                 <Route path="details/:tableId" element={<UserDetails />} />
+                <Route path="quick-start/:tableId" element={<QuickStart />} />
                 <Route path="session/:sessionId" element={<GameSession />} />
             </Routes>
         </div>

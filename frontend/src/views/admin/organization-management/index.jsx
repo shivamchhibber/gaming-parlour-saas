@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import Card from "components/card";
 import authService from "services/authService";
+import PasswordCredentialsModal from "components/modal/PasswordCredentialsModal";
+import ConfirmationModal from "components/modal/ConfirmationModal";
+import Toast from "components/notifications/Toast";
 
 const OrganizationManagement = () => {
     const [organizations, setOrganizations] = useState([]);
@@ -8,6 +11,12 @@ const OrganizationManagement = () => {
     const [showAddForm, setShowAddForm] = useState(false);
     const [message, setMessage] = useState("");
     const [messageType, setMessageType] = useState("");
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [passwordCredentials, setPasswordCredentials] = useState(null);
+    const [showWhitelistModal, setShowWhitelistModal] = useState(false);
+    const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+    const [selectedOrg, setSelectedOrg] = useState(null);
+    const [toast, setToast] = useState({ show: false, message: "", type: "info" });
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -26,6 +35,7 @@ const OrganizationManagement = () => {
     const fetchOrganizations = async () => {
         try {
             const response = await authService.api.get("/super-admin/organizations");
+            console.log("Organizations data:", response.data);
             setOrganizations(response.data);
         } catch (error) {
             console.error("Error fetching organizations:", error);
@@ -79,21 +89,61 @@ const OrganizationManagement = () => {
         }
     };
 
-    const handleWhitelist = async (orgId, orgName) => {
-        if (window.confirm(`Are you sure you want to whitelist and activate "${orgName}"?`)) {
-            try {
-                await authService.api.post(`/super-admin/organizations/${orgId}/whitelist`);
-                setMessage(`Organization "${orgName}" has been whitelisted and activated!`);
-                setMessageType("success");
-                fetchOrganizations();
-                setTimeout(() => setMessage(""), 3000);
-            } catch (error) {
-                console.error("Error whitelisting organization:", error);
-                setMessage("Error whitelisting organization");
-                setMessageType("error");
-                setTimeout(() => setMessage(""), 3000);
-            }
+    const handleWhitelist = (org) => {
+        setSelectedOrg(org);
+        setShowWhitelistModal(true);
+    };
+
+    const confirmWhitelist = async () => {
+        setShowWhitelistModal(false);
+        try {
+            await authService.api.post(`/super-admin/organizations/${selectedOrg.id}/whitelist`);
+            setToast({
+                show: true,
+                message: `Organization "${selectedOrg.organization_name}" has been whitelisted and activated!`,
+                type: "success"
+            });
+            fetchOrganizations();
+        } catch (error) {
+            console.error("Error whitelisting organization:", error);
+            setToast({
+                show: true,
+                message: "Error whitelisting organization",
+                type: "error"
+            });
         }
+        setSelectedOrg(null);
+    };
+
+    const handleResetPassword = (org) => {
+        setSelectedOrg(org);
+        setShowResetPasswordModal(true);
+    };
+
+    const confirmResetPassword = async () => {
+        setShowResetPasswordModal(false);
+        try {
+            const response = await authService.api.post(`/super-admin/organizations/${selectedOrg.id}/reset-password`);
+            const data = response.data;
+
+            // Show credentials in beautiful modal
+            setPasswordCredentials(data);
+            setShowPasswordModal(true);
+
+            setToast({
+                show: true,
+                message: `Password reset successfully for "${selectedOrg.organization_name}". New credentials have been generated.`,
+                type: "success"
+            });
+        } catch (error) {
+            console.error("Error resetting password:", error);
+            setToast({
+                show: true,
+                message: error.response?.data?.detail || "Error resetting password",
+                type: "error"
+            });
+        }
+        setSelectedOrg(null);
     };
 
     const getStatusBadge = (org) => {
@@ -154,8 +204,8 @@ const OrganizationManagement = () => {
 
                     {message && (
                         <div className={`mt-4 rounded-xl p-4 ${messageType === "success"
-                                ? "bg-green-50 border border-green-200"
-                                : "bg-red-50 border border-red-200"
+                            ? "bg-green-50 border border-green-200"
+                            : "bg-red-50 border border-red-200"
                             }`}>
                             <p className={`text-sm ${messageType === "success" ? "text-green-600" : "text-red-600"
                                 }`}>
@@ -348,6 +398,7 @@ const OrganizationManagement = () => {
                                             <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2">
                                                 <div>📧 {org.contact_email}</div>
                                                 <div>👤 {org.owner_name}</div>
+                                                <div>🔑 Username: <code className="bg-gray-100 px-1 rounded text-xs">{org.owner_username || `owner_${org.slug}`}</code></div>
                                                 <div>📅 Created: {new Date(org.created_at).toLocaleDateString()}</div>
                                                 <div>🎮 Tables: {org.max_tables} | 👥 Staff: {org.max_staff}</div>
                                             </div>
@@ -361,15 +412,22 @@ const OrganizationManagement = () => {
                                             )}
                                         </div>
 
-                                        <div className="ml-4">
+                                        <div className="ml-4 flex flex-col gap-2">
                                             {!org.is_whitelisted && (
                                                 <button
-                                                    onClick={() => handleWhitelist(org.id, org.name)}
+                                                    onClick={() => handleWhitelist(org)}
                                                     className="rounded-lg bg-green-500 px-3 py-1 text-sm font-medium text-white hover:bg-green-600 transition-colors"
                                                 >
                                                     ✅ Approve & Activate
                                                 </button>
                                             )}
+                                            <button
+                                                onClick={() => handleResetPassword(org)}
+                                                className="rounded-lg bg-orange-500 px-3 py-1 text-sm font-medium text-white hover:bg-orange-600 transition-colors"
+                                                title="Reset organization owner password"
+                                            >
+                                                🔑 Reset Password
+                                            </button>
                                         </div>
                                     </div>
 
@@ -390,6 +448,54 @@ const OrganizationManagement = () => {
                     )}
                 </Card>
             </div>
+
+            {/* Password Credentials Modal */}
+            <PasswordCredentialsModal
+                isOpen={showPasswordModal}
+                onClose={() => {
+                    setShowPasswordModal(false);
+                    setPasswordCredentials(null);
+                }}
+                credentials={passwordCredentials}
+            />
+
+            {/* Whitelist Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showWhitelistModal}
+                onClose={() => {
+                    setShowWhitelistModal(false);
+                    setSelectedOrg(null);
+                }}
+                onConfirm={confirmWhitelist}
+                title="Whitelist Organization"
+                message={`Are you sure you want to whitelist and activate "${selectedOrg?.organization_name}"?\n\nThis will allow the organization to access the system.`}
+                confirmText="Whitelist"
+                cancelText="Cancel"
+                type="info"
+            />
+
+            {/* Reset Password Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showResetPasswordModal}
+                onClose={() => {
+                    setShowResetPasswordModal(false);
+                    setSelectedOrg(null);
+                }}
+                onConfirm={confirmResetPassword}
+                title="Reset Password"
+                message={`Are you sure you want to reset the password for "${selectedOrg?.organization_name}" organization owner?\n\nThis will generate new login credentials.`}
+                confirmText="Reset Password"
+                cancelText="Cancel"
+                type="warning"
+            />
+
+            {/* Toast Notifications */}
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.show}
+                onClose={() => setToast({ ...toast, show: false })}
+            />
         </div>
     );
 };

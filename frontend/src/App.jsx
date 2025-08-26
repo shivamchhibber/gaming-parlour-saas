@@ -5,6 +5,8 @@ import RtlLayout from "layouts/rtl";
 import AdminLayout from "layouts/admin";
 import AuthLayout from "layouts/auth";
 import UserLayout from "layouts/user";
+import PublicLayout from "layouts/public";
+import PlayerLayout from "layouts/player";
 import ProtectedRoute from "components/ProtectedRoute";
 
 // Redirect component for old QR code URLs
@@ -23,10 +25,12 @@ const App = () => {
         </ProtectedRoute>
       } />
       <Route path="user/*" element={<UserLayout />} />
+      <Route path="public/*" element={<PublicLayout />} />
+      <Route path="player/*" element={<PlayerLayout />} />
       <Route path="rtl/*" element={<RtlLayout />} />
       {/* Redirect old QR code URLs to new format */}
       <Route path="scan/:tableId" element={<OldQRRedirect />} />
-      <Route path="/" element={<Navigate to="/admin" replace />} />
+      <Route path="/" element={<Navigate to="/public/signup" replace />} />
     </Routes>
   );
 };

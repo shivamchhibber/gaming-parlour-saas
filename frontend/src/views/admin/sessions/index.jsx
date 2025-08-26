@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { MdRefresh, MdAccessTime, MdAttachMoney, MdPerson } from "react-icons/md";
+import { MdRefresh, MdAccessTime, MdAttachMoney, MdPerson, MdPayment, MdStop } from "react-icons/md";
 import { api } from "../../../services/authService";
+import Toast from "components/notifications/Toast";
+import ConfirmationModal from "components/modal/ConfirmationModal";
 
 import Card from "components/card";
-import ComplexTable from "views/admin/default/components/ComplexTable";
 
 const SessionsManagement = () => {
     const [sessions, setSessions] = useState([]);
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("all"); // all, active, completed
+    const [toast, setToast] = useState({ show: false, message: "", type: "info" });
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [selectedSession, setSelectedSession] = useState(null);
+    const [actionLoading, setActionLoading] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -19,10 +24,13 @@ const SessionsManagement = () => {
 
     const fetchData = async () => {
         try {
-                  const [sessionsResponse, tablesResponse] = await Promise.all([
-        api.get("/admin/sessions"),
-        api.get("/admin/tables"),
-      ]);
+            const [sessionsResponse, tablesResponse] = await Promise.all([
+                api.get("/admin/sessions"),
+                api.get("/admin/tables"),
+            ]);
+
+            console.log("Sessions data:", sessionsResponse.data);
+            console.log("Tables data:", tablesResponse.data);
 
             setSessions(sessionsResponse.data);
             setTables(tablesResponse.data);
@@ -52,6 +60,97 @@ const SessionsManagement = () => {
             return sessions.filter((session) => session.status === "completed");
         }
         return sessions;
+    };
+
+    const handleEndSessionForCash = (session) => {
+        setSelectedSession(session);
+        setShowConfirmModal(true);
+    };
+
+    const handleMarkAsCash = (session) => {
+        setSelectedSession(session);
+        setShowConfirmModal(true);
+    };
+
+    const handleMarkAsPaid = (session) => {
+        setSelectedSession({ ...session, actionType: 'mark-paid' });
+        setShowConfirmModal(true);
+    };
+
+    const confirmEndForCash = async () => {
+        setShowConfirmModal(false);
+        setActionLoading(true);
+
+        try {
+            if (selectedSession.status === "active") {
+                // End active session and mark as cash
+                await api.post("/admin/session/end-for-cash", {
+                    session_id: selectedSession.session_id
+                });
+
+                setToast({
+                    show: true,
+                    message: `✅ Session ended for ${selectedSession.user_name}. Marked as cash payment.`,
+                    type: "success"
+                });
+            } else if (selectedSession.actionType === 'mark-paid') {
+                // Mark completed session as online payment
+                await api.post("/admin/session/mark-paid", {
+                    session_id: selectedSession.session_id
+                });
+
+                setToast({
+                    show: true,
+                    message: `✅ Session for ${selectedSession.user_name} marked as PAID: ₹${selectedSession.total_charge}`,
+                    type: "success"
+                });
+            } else {
+                // Mark completed session as cash payment
+                await api.post("/admin/session/mark-cash", {
+                    session_id: selectedSession.session_id
+                });
+
+                setToast({
+                    show: true,
+                    message: `✅ Session for ${selectedSession.user_name} marked as cash payment: ₹${selectedSession.total_charge}`,
+                    type: "success"
+                });
+            }
+
+            // Refresh data
+            fetchData();
+        } catch (error) {
+            setToast({
+                show: true,
+                message: error.response?.data?.detail || "Error processing request",
+                type: "error"
+            });
+        } finally {
+            setActionLoading(false);
+            setSelectedSession(null);
+        }
+    };
+
+    const getPaymentStatusBadge = (status) => {
+        const styles = {
+            paid: "bg-green-100 text-green-800",
+            cash: "bg-blue-100 text-blue-800",
+            unpaid: "bg-red-100 text-red-800",
+            pending: "bg-yellow-100 text-yellow-800"
+        };
+
+        const icons = {
+            paid: "💳",
+            cash: "💵",
+            unpaid: "⏳",
+            pending: "⏳"
+        };
+
+        return (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.pending}`}>
+                {icons[status] || icons.pending} {status?.toUpperCase() || "PENDING"}
+            </span>
+        );
     };
 
     const columnsData = [
@@ -88,7 +187,8 @@ const SessionsManagement = () => {
             accessor: "start_time",
             Cell: ({ value }) => (
                 <div className="text-sm">
-                    {new Date(value).toLocaleString()}
+                    <div>{new Date(value).toLocaleDateString()}</div>
+                    <div className="text-xs text-gray-500">{new Date(value).toLocaleTimeString()}</div>
                 </div>
             ),
         },
@@ -111,16 +211,62 @@ const SessionsManagement = () => {
             ),
         },
         {
+            Header: "PAYMENT",
+            accessor: "payment_status",
+            Cell: ({ value }) => getPaymentStatusBadge(value),
+        },
+        {
             Header: "STATUS",
             accessor: "status",
             Cell: ({ value }) => (
                 <div
                     className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${value === "active"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-blue-100 text-blue-800"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-blue-100 text-blue-800"
                         }`}
                 >
                     {value}
+                </div>
+            ),
+        },
+        {
+            Header: "ACTIONS",
+            accessor: "actions",
+            Cell: ({ row }) => (
+                <div className="flex space-x-2">
+                    {row.original.status === "active" && (
+                        <button
+                            onClick={() => handleEndSessionForCash(row.original)}
+                            disabled={actionLoading}
+                            className="flex items-center space-x-1 px-3 py-1 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 text-xs"
+                            title="End session and collect cash payment"
+                        >
+                            <MdStop className="w-3 h-3" />
+                            <span>End & Cash</span>
+                        </button>
+                    )}
+                    {row.original.status === "completed" && (row.original.payment_status === "pending" || row.original.payment_status === "unpaid") && (
+                        <div className="flex space-x-1">
+                            <button
+                                onClick={() => handleMarkAsCash(row.original)}
+                                disabled={actionLoading}
+                                className="flex items-center space-x-1 px-2 py-1 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 text-xs"
+                                title="Mark as cash payment"
+                            >
+                                <MdPayment className="w-3 h-3" />
+                                <span>Cash</span>
+                            </button>
+                            <button
+                                onClick={() => handleMarkAsPaid(row.original)}
+                                disabled={actionLoading}
+                                className="flex items-center space-x-1 px-2 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 text-xs"
+                                title="Mark as online payment"
+                            >
+                                <MdPayment className="w-3 h-3" />
+                                <span>Paid</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             ),
         },
@@ -229,8 +375,8 @@ const SessionsManagement = () => {
                         <button
                             onClick={() => setFilter("all")}
                             className={`flex-1 py-3 px-4 text-center font-semibold ${filter === "all"
-                                    ? "bg-brand-500 text-white"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-brand-500 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 } rounded-l-lg`}
                         >
                             All Sessions ({sessions.length})
@@ -238,8 +384,8 @@ const SessionsManagement = () => {
                         <button
                             onClick={() => setFilter("active")}
                             className={`flex-1 py-3 px-4 text-center font-semibold ${filter === "active"
-                                    ? "bg-brand-500 text-white"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-brand-500 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 }`}
                         >
                             Active ({activeSessions.length})
@@ -247,8 +393,8 @@ const SessionsManagement = () => {
                         <button
                             onClick={() => setFilter("completed")}
                             className={`flex-1 py-3 px-4 text-center font-semibold ${filter === "completed"
-                                    ? "bg-brand-500 text-white"
-                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                ? "bg-brand-500 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                                 } rounded-r-lg`}
                         >
                             Completed ({completedSessions.length})
@@ -275,10 +421,52 @@ const SessionsManagement = () => {
                     </div>
                 </Card>
             ) : (
-                <ComplexTable
-                    columnsData={columnsData}
-                    tableData={filteredSessions}
-                />
+                <Card extra="w-full h-full px-6 pb-6">
+                    <div className="relative flex items-center justify-between pt-4">
+                        <div className="text-xl font-bold text-navy-700 dark:text-white">
+                            Sessions Data
+                        </div>
+                    </div>
+
+                    <div className="mt-8 overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-gray-200">
+                                    {columnsData.map((column, index) => (
+                                        <th
+                                            key={index}
+                                            className="border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start"
+                                        >
+                                            <p className="text-sm font-bold text-gray-600 dark:text-white">
+                                                {column.Header}
+                                            </p>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredSessions.map((session, rowIndex) => (
+                                    <tr key={session.id || rowIndex} className="border-b border-gray-100">
+                                        {columnsData.map((column, colIndex) => (
+                                            <td
+                                                key={colIndex}
+                                                className="min-w-[150px] border-white/0 py-3 pr-4"
+                                            >
+                                                {column.Cell ?
+                                                    column.Cell({
+                                                        value: session[column.accessor],
+                                                        row: { original: session }
+                                                    }) :
+                                                    (session[column.accessor] || '-')
+                                                }
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
             )}
 
             {/* Active Sessions Live Monitoring */}
@@ -353,6 +541,37 @@ const SessionsManagement = () => {
                     </div>
                 </div>
             </Card>
+
+            {/* Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showConfirmModal}
+                onClose={() => {
+                    setShowConfirmModal(false);
+                    setSelectedSession(null);
+                }}
+                onConfirm={confirmEndForCash}
+                title="End Session & Collect Cash"
+                message={selectedSession ?
+                    selectedSession.status === "active" ?
+                        `End session for ${selectedSession.user_name} at Table ${getTableNumber(selectedSession.table_id)}?\n\nThis will calculate the final bill and mark it as CASH PAYMENT.` :
+                        selectedSession.actionType === 'mark-paid' ?
+                            `Mark session for ${selectedSession.user_name} as ONLINE PAYMENT?\n\nAmount: ₹${selectedSession.total_charge}` :
+                            `Mark session for ${selectedSession.user_name} as CASH PAYMENT?\n\nAmount: ₹${selectedSession.total_charge}` :
+                    ""
+                }
+                confirmText={selectedSession?.status === "active" ? "End & Collect Cash" :
+                    selectedSession?.actionType === 'mark-paid' ? "Mark as Paid" : "Mark as Cash"}
+                cancelText="Cancel"
+                type="warning"
+            />
+
+            {/* Toast Notifications */}
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.show}
+                onClose={() => setToast({ ...toast, show: false })}
+            />
         </div>
     );
 };

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MdGames, MdTableChart, MdAccessTime, MdAttachMoney } from "react-icons/md";
 import { api } from "../../../services/authService";
 import { IoDocuments } from "react-icons/io5";
 
 import Widget from "components/widget/Widget";
 import CheckTable from "views/admin/default/components/CheckTable";
-import WeeklyRevenue from "views/admin/default/components/WeeklyRevenue";
-import PieChartCard from "views/admin/default/components/PieChartCard";
+import RevenueChart from "./components/RevenueChart";
+import SessionAnalytics from "./components/SessionAnalytics";
 
 const GameParlourDashboard = () => {
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         totalTables: 0,
         activeSessions: 0,
@@ -26,10 +28,10 @@ const GameParlourDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-                  const [tablesResponse, sessionsResponse] = await Promise.all([
-        api.get("/admin/tables"),
-        api.get("/admin/sessions"),
-      ]);
+            const [tablesResponse, sessionsResponse] = await Promise.all([
+                api.get("/admin/tables"),
+                api.get("/admin/sessions"),
+            ]);
 
             const tables = tablesResponse.data;
             const sessions = sessionsResponse.data;
@@ -45,7 +47,13 @@ const GameParlourDashboard = () => {
                 totalRevenue: totalRevenue.toFixed(2),
             });
 
-            // Get recent sessions for table
+            // Create a map of table IDs to table numbers for better display
+            const tableMap = {};
+            tables.forEach(table => {
+                tableMap[table.id] = table.table_number;
+            });
+
+            // Get recent sessions for table with proper table numbers
             const recentSessionsData = sessions
                 .sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
                 .slice(0, 10)
@@ -53,7 +61,7 @@ const GameParlourDashboard = () => {
                     id: index + 1,
                     name: session.user_name,
                     phone: session.user_phone,
-                    table: `Table ${session.table_id}`,
+                    table: tableMap[session.table_id] || `T${session.table_id}`,
                     status: session.status,
                     charge: session.total_charge ? `₹${session.total_charge}` : "In Progress",
                     date: new Date(session.start_time).toLocaleDateString(),
@@ -140,8 +148,8 @@ const GameParlourDashboard = () => {
 
             {/* Charts Section */}
             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
-                <WeeklyRevenue />
-                <PieChartCard />
+                <RevenueChart />
+                <SessionAnalytics />
             </div>
 
             {/* Recent Sessions Table */}
@@ -185,7 +193,10 @@ const GameParlourDashboard = () => {
                     <p className="mb-4 text-gray-600 dark:text-gray-400">
                         Add new gaming tables, set rates, and generate QR codes
                     </p>
-                    <button className="w-full rounded-lg bg-brand-500 py-2 text-white hover:bg-brand-600">
+                    <button
+                        onClick={() => navigate("/admin/tables-management")}
+                        className="w-full rounded-lg bg-brand-500 py-2 text-white hover:bg-brand-600 transition-colors"
+                    >
                         Go to Tables
                     </button>
                 </div>
@@ -200,7 +211,10 @@ const GameParlourDashboard = () => {
                     <p className="mb-4 text-gray-600 dark:text-gray-400">
                         Monitor ongoing gaming sessions and manage billing
                     </p>
-                    <button className="w-full rounded-lg bg-green-500 py-2 text-white hover:bg-green-600">
+                    <button
+                        onClick={() => navigate("/admin/sessions")}
+                        className="w-full rounded-lg bg-green-500 py-2 text-white hover:bg-green-600 transition-colors"
+                    >
                         View Sessions
                     </button>
                 </div>
@@ -215,7 +229,10 @@ const GameParlourDashboard = () => {
                     <p className="mb-4 text-gray-600 dark:text-gray-400">
                         Test the user experience for QR scanning and session management
                     </p>
-                    <button className="w-full rounded-lg bg-purple-500 py-2 text-white hover:bg-purple-600">
+                    <button
+                        onClick={() => navigate("/admin/user-interface")}
+                        className="w-full rounded-lg bg-purple-500 py-2 text-white hover:bg-purple-600 transition-colors"
+                    >
                         Try User Flow
                     </button>
                 </div>

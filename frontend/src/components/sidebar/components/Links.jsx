@@ -24,6 +24,10 @@ export function SidebarLinks(props) {
         if (route.superAdminOnly && currentUser?.role !== "super_admin") {
           return false; // Hide super admin routes for non-super admins
         }
+        // Hide auth routes (like Sign In) when user is logged in
+        if (route.layout === "/auth" && currentUser) {
+          return false; // Hide auth routes when logged in
+        }
         return true; // Show all other routes
       })
       .map((route, index) => {
@@ -41,16 +45,16 @@ export function SidebarLinks(props) {
                 >
                   <span
                     className={`${activeRoute(route.path) === true
-                        ? "font-bold text-brand-500 dark:text-white"
-                        : "font-medium text-gray-600"
+                      ? "font-bold text-brand-500 dark:text-white"
+                      : "font-medium text-gray-600"
                       }`}
                   >
                     {route.icon ? route.icon : <DashIcon />}{" "}
                   </span>
                   <p
                     className={`leading-1 ml-4 flex ${activeRoute(route.path) === true
-                        ? "font-bold text-navy-700 dark:text-white"
-                        : "font-medium text-gray-600"
+                      ? "font-bold text-navy-700 dark:text-white"
+                      : "font-medium text-gray-600"
                       }`}
                   >
                     {route.name}

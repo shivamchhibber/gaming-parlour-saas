@@ -26,8 +26,17 @@ const UserDetails = () => {
   }, [tableId]);
 
   useEffect(() => {
+    // Redirect to login if accessed directly - we now require authentication
+    const playerAuth = localStorage.getItem('playerAuth');
+    if (!playerAuth) {
+      navigate('/player/login', {
+        state: { returnTo: `/user/scan/${tableId}`, tableId: tableId }
+      });
+      return;
+    }
+
     fetchTableInfo();
-  }, [fetchTableInfo]);
+  }, [fetchTableInfo, navigate, tableId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -95,13 +104,18 @@ const UserDetails = () => {
           <div className="text-center mb-8">
             <div className="text-5xl mb-4">👤</div>
             <h1 className="mb-2 text-2xl font-bold text-gray-800">
-              Enter Your Details
+              Guest Session (Backup)
             </h1>
             <p className="mb-2 text-lg font-semibold text-blue-600">
               Table {table?.table_number} - ₹{table?.rate_per_hour}/hour
             </p>
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-700">
+                ⚠️ <strong>Note:</strong> This is a backup form. For the best experience with session history and quick payments, please use the player login system.
+              </p>
+            </div>
             <p className="text-gray-600">
-              Please provide your details to start the gaming session
+              Provide your details for this one-time session
             </p>
           </div>
 
@@ -155,12 +169,25 @@ const UserDetails = () => {
             </button>
           </form>
 
-          <button
-            onClick={() => navigate(`/user/scan/${tableId}`)}
-            className="mt-4 w-full rounded-lg bg-gray-500 py-3 text-white hover:bg-gray-600 transition-colors"
-          >
-            Back to Table Info
-          </button>
+          <div className="mt-4 space-y-3">
+            <button
+              onClick={() => navigate(`/user/scan/${tableId}`)}
+              className="w-full rounded-lg bg-gray-500 py-3 text-white hover:bg-gray-600 transition-colors"
+            >
+              Back to Table Info
+            </button>
+
+            <div className="text-center">
+              <button
+                onClick={() => navigate('/player/login', {
+                  state: { returnTo: `/user/scan/${tableId}`, tableId: tableId }
+                })}
+                className="w-full py-2 text-blue-500 hover:text-blue-700 font-medium border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                🔐 Switch to Player Login (Recommended)
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Privacy Notice */}

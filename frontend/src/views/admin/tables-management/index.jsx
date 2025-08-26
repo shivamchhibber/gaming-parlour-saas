@@ -4,6 +4,8 @@ import { api } from "../../../services/authService";
 
 import Card from "components/card";
 import InputField from "components/fields/InputField";
+import ConfirmationModal from "components/modal/ConfirmationModal";
+import Toast from "components/notifications/Toast";
 
 const TablesManagement = () => {
     const [tables, setTables] = useState([]);
@@ -15,6 +17,9 @@ const TablesManagement = () => {
     });
     const [message, setMessage] = useState("");
     const [messageType, setMessageType] = useState("");
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [tableToDelete, setTableToDelete] = useState(null);
+    const [toast, setToast] = useState({ show: false, message: "", type: "info" });
 
     useEffect(() => {
         fetchTables();
@@ -60,7 +65,7 @@ const TablesManagement = () => {
 
             console.log("Sending data:", requestData); // Debug log
 
-                  await api.post("/admin/tables", requestData);
+            await api.post("/admin/tables", requestData);
 
             setMessage("Table added successfully!");
             setMessageType("success");
@@ -76,20 +81,29 @@ const TablesManagement = () => {
         }
     };
 
-    const handleDeleteTable = async (tableId) => {
-        if (window.confirm("Are you sure you want to delete this table?")) {
-                    try {
-            await api.delete(`/admin/tables/${tableId}`);
-                setMessage("Table deleted successfully!");
-                setMessageType("success");
-                fetchTables();
-                setTimeout(() => setMessage(""), 3000);
-            } catch (error) {
-                setMessage(error.response?.data?.detail || "Error deleting table");
-                setMessageType("error");
-                setTimeout(() => setMessage(""), 3000);
-            }
+    const handleDeleteTable = (table) => {
+        setTableToDelete(table);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteTable = async () => {
+        setShowDeleteModal(false);
+        try {
+            await api.delete(`/admin/tables/${tableToDelete.id}`);
+            setToast({
+                show: true,
+                message: "Table deleted successfully!",
+                type: "success"
+            });
+            fetchTables();
+        } catch (error) {
+            setToast({
+                show: true,
+                message: error.response?.data?.detail || "Error deleting table",
+                type: "error"
+            });
         }
+        setTableToDelete(null);
     };
 
     const downloadQRCode = (table) => {
@@ -256,7 +270,7 @@ const TablesManagement = () => {
                                         Download QR
                                     </button>
                                     <button
-                                        onClick={() => handleDeleteTable(table.id)}
+                                        onClick={() => handleDeleteTable(table)}
                                         className="flex items-center rounded-lg bg-red-500 px-3 py-2 text-sm text-white hover:bg-red-600"
                                     >
                                         <MdDelete className="mr-1 h-4 w-4" />
@@ -309,6 +323,29 @@ const TablesManagement = () => {
                     </div>
                 </div>
             </Card>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={showDeleteModal}
+                onClose={() => {
+                    setShowDeleteModal(false);
+                    setTableToDelete(null);
+                }}
+                onConfirm={confirmDeleteTable}
+                title="Delete Table"
+                message={`Are you sure you want to delete Table ${tableToDelete?.table_number}?\n\nThis action cannot be undone and will remove all associated QR codes.`}
+                confirmText="Delete Table"
+                cancelText="Cancel"
+                type="error"
+            />
+
+            {/* Toast Notifications */}
+            <Toast
+                message={toast.message}
+                type={toast.type}
+                isVisible={toast.show}
+                onClose={() => setToast({ ...toast, show: false })}
+            />
         </div>
     );
 };

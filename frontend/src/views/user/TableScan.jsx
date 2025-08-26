@@ -25,7 +25,19 @@ const TableScan = () => {
     }, [fetchTableInfo]);
 
     const handleStartSession = () => {
-        navigate(`/user/details/${tableId}`);
+        // Check if player is already logged in
+        const playerAuth = localStorage.getItem('playerAuth');
+        if (playerAuth) {
+            // Player is logged in, redirect to dashboard with table info
+            navigate('/player/dashboard', {
+                state: { tableId: tableId, autoStart: true }
+            });
+        } else {
+            // Player must login first
+            navigate('/player/login', {
+                state: { returnTo: `/user/scan/${tableId}`, tableId: tableId }
+            });
+        }
     };
 
     if (loading) {
@@ -70,14 +82,22 @@ const TableScan = () => {
                     <p className="mb-6 text-2xl font-bold text-blue-600">
                         ₹{table.rate_per_hour} per hour
                     </p>
-                    <p className="mb-8 text-gray-600 leading-relaxed">
-                        Welcome to our gaming table! Click below to start your gaming session.
+                    <p className="mb-6 text-gray-600 leading-relaxed">
+                        Welcome to our gaming table! Please login to start your gaming session.
                     </p>
+
+                    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <h4 className="font-semibold text-blue-800 mb-2">📱 Player Login Required</h4>
+                        <p className="text-sm text-blue-700">
+                            All players must authenticate to track sessions, payments, and build gaming history.
+                        </p>
+                    </div>
+
                     <button
                         onClick={handleStartSession}
-                        className="w-full rounded-lg bg-green-500 py-4 text-lg font-semibold text-white hover:bg-green-600 transition-colors"
+                        className="w-full rounded-lg bg-blue-500 py-4 text-lg font-semibold text-white hover:bg-blue-600 transition-colors"
                     >
-                        Start Gaming Session
+                        🔐 Login & Start Gaming
                     </button>
                 </div>
             </div>
@@ -88,20 +108,20 @@ const TableScan = () => {
                     <h3 className="mb-4 text-lg font-bold text-gray-800">📋 Session Guidelines</h3>
                     <ul className="space-y-2 text-sm text-gray-600">
                         <li className="flex items-start">
-                            <span className="mr-2 text-green-500">✓</span>
-                            Provide your name and phone number to start
+                            <span className="mr-2 text-blue-500">📱</span>
+                            Login with phone number + OTP verification
                         </li>
                         <li className="flex items-start">
                             <span className="mr-2 text-green-500">✓</span>
-                            Gaming time tracked automatically
+                            Gaming time tracked automatically in your account
                         </li>
                         <li className="flex items-start">
                             <span className="mr-2 text-green-500">✓</span>
-                            End session anytime through the app
+                            Session history saved for future reference
                         </li>
                         <li className="flex items-start">
                             <span className="mr-2 text-green-500">✓</span>
-                            Payment calculated based on actual time
+                            Secure payment with auto-redirect to dashboard
                         </li>
                     </ul>
                 </div>
