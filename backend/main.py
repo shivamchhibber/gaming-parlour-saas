@@ -1324,16 +1324,16 @@ async def end_session(session_end: SessionEnd, db: Session = Depends(get_db)):
 async def get_all_sessions(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # Multi-tenant access control
     if current_user.role == "super_admin":
-        # Super admin sees all sessions across all organizations
-        sessions = db.query(GameSession).all()
+        # Super admin sees all sessions across all organizations, sorted by created_at in descending order
+        sessions = db.query(GameSession).order_by(GameSession.created_at.desc()).all()
     else:
         if not current_user.organization_id:
             raise HTTPException(status_code=400, detail="User not associated with any organization")
         
-        # Organization users see only their organization's sessions
+        # Organization users see only their organization's sessions, sorted by created_at in descending order
         sessions = db.query(GameSession).filter(
             GameSession.organization_id == current_user.organization_id
-        ).all()
+        ).order_by(GameSession.created_at.desc()).all()
     
     return sessions
 

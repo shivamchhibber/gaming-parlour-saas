@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { MdRefresh, MdAccessTime, MdAttachMoney, MdPerson, MdPayment, MdStop } from "react-icons/md";
-import { api } from "../../../services/authService";
+import { api, authService } from "../../../services/authService";
 import Toast from "components/notifications/Toast";
 import ConfirmationModal from "components/modal/ConfirmationModal";
-
 import Card from "components/card";
+
+const SESSIONS_PER_PAGE = 5;
 
 const SessionsManagement = () => {
     const [sessions, setSessions] = useState([]);
@@ -15,8 +16,16 @@ const SessionsManagement = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedSession, setSelectedSession] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     useEffect(() => {
+        // Check user role
+        const user = authService.getCurrentUser();
+        if (user && user.role === 'super_admin') {
+            setIsSuperAdmin(true);
+        }
+        
         fetchData();
         const interval = setInterval(fetchData, 10000); // Refresh every 10 seconds
         return () => clearInterval(interval);
@@ -54,12 +63,41 @@ const SessionsManagement = () => {
     };
 
     const getFilteredSessions = () => {
+        let filtered = [...sessions]; // Create a copy to avoid mutating the original array
+        
         if (filter === "active") {
-            return sessions.filter((session) => session.status === "active");
+            filtered = filtered.filter((session) => session.status === "active");
         } else if (filter === "completed") {
-            return sessions.filter((session) => session.status === "completed");
+            filtered = filtered.filter((session) => session.status === "completed");
         }
-        return sessions;
+        
+        return filtered;
+    };
+
+    // Get current sessions for the current page
+    const getPaginatedSessions = () => {
+        const filteredSessions = getFilteredSessions();
+        const indexOfLastSession = currentPage * SESSIONS_PER_PAGE;
+        const indexOfFirstSession = indexOfLastSession - SESSIONS_PER_PAGE;
+        return filteredSessions.slice(indexOfFirstSession, indexOfLastSession);
+    };
+
+    // Change page
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    // Handle filter change
+    const handleFilterChange = (newFilter) => {
+        setFilter(newFilter);
+        setCurrentPage(1); // Reset to first page when filter changes
+    };
+
+    // Handle page change
+    const handlePageChange = (direction) => {
+        if (direction === 'prev' && currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        } else if (direction === 'next' && currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
     };
 
     const handleEndSessionForCash = (session) => {
@@ -154,30 +192,34 @@ const SessionsManagement = () => {
     };
 
     const columnsData = [
-        {
+        // Session ID column - only visible to super admin
+        ...(isSuperAdmin ? [{
             Header: "SESSION ID",
             accessor: "session_id",
+            width: 120,
             Cell: ({ value }) => (
-                <div className="font-mono text-sm">
+                <div className="font-mono text-sm truncate" title={value}>
                     {value.substring(0, 8)}...
                 </div>
             ),
-        },
+        }] : []),
         {
             Header: "USER",
             accessor: "user_name",
+            width: 180,
             Cell: ({ value, row }) => (
-                <div>
-                    <div className="font-semibold">{value}</div>
-                    <div className="text-xs text-gray-500">{row.original.user_phone}</div>
+                <div className="min-w-0">
+                    <div className="font-semibold truncate">{value}</div>
+                    <div className="text-xs text-gray-500 truncate">{row.original.user_phone}</div>
                 </div>
             ),
         },
         {
             Header: "TABLE",
             accessor: "table_id",
+            width: 100,
             Cell: ({ value }) => (
-                <div className="font-semibold text-brand-500">
+                <div className="font-semibold text-brand-500 whitespace-nowrap">
                     {getTableNumber(value)}
                 </div>
             ),
@@ -185,18 +227,20 @@ const SessionsManagement = () => {
         {
             Header: "START TIME",
             accessor: "start_time",
+            width: 140,
             Cell: ({ value }) => (
-                <div className="text-sm">
+                <div className="text-sm whitespace-nowrap">
                     <div>{new Date(value).toLocaleDateString()}</div>
-                    <div className="text-xs text-gray-500">{new Date(value).toLocaleTimeString()}</div>
+                    <div className="text-xs text-gray-500">{new Date(value).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                 </div>
             ),
         },
         {
             Header: "DURATION",
             accessor: "duration_minutes",
+            width: 100,
             Cell: ({ value }) => (
-                <div className="font-semibold">
+                <div className="font-semibold whitespace-nowrap">
                     {formatDuration(value)}
                 </div>
             ),
@@ -204,8 +248,9 @@ const SessionsManagement = () => {
         {
             Header: "CHARGE",
             accessor: "total_charge",
+            width: 100,
             Cell: ({ value }) => (
-                <div className="font-semibold text-green-600">
+                <div className="font-semibold text-green-600 whitespace-nowrap">
                     {value ? `₹${value}` : "In Progress"}
                 </div>
             ),
@@ -279,6 +324,8 @@ const SessionsManagement = () => {
         (sum, session) => sum + (session.total_charge || 0),
         0
     );
+    const totalPages = Math.ceil(filteredSessions.length / SESSIONS_PER_PAGE);
+    const currentSessions = getPaginatedSessions();
 
     if (loading) {
         return (
@@ -370,41 +417,52 @@ const SessionsManagement = () => {
 
             {/* Filter Tabs */}
             <div className="mb-5">
-                <Card extra="p-0">
-                    <div className="flex">
-                        <button
-                            onClick={() => setFilter("all")}
-                            className={`flex-1 py-3 px-4 text-center font-semibold ${filter === "all"
-                                ? "bg-brand-500 text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                } rounded-l-lg`}
-                        >
-                            All Sessions ({sessions.length})
-                        </button>
-                        <button
-                            onClick={() => setFilter("active")}
-                            className={`flex-1 py-3 px-4 text-center font-semibold ${filter === "active"
-                                ? "bg-brand-500 text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                <Card extra="p-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => handleFilterChange("all")}
+                                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    filter === "all" 
+                                        ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20' 
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600'
                                 }`}
-                        >
-                            Active ({activeSessions.length})
-                        </button>
-                        <button
-                            onClick={() => setFilter("completed")}
-                            className={`flex-1 py-3 px-4 text-center font-semibold ${filter === "completed"
-                                ? "bg-brand-500 text-white"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                } rounded-r-lg`}
-                        >
-                            Completed ({completedSessions.length})
-                        </button>
+                            >
+                                All Sessions
+                            </button>
+                            <button
+                                onClick={() => handleFilterChange("active")}
+                                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    filter === "active" 
+                                        ? 'bg-green-500 text-white shadow-md shadow-green-500/20' 
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600'
+                                }`}
+                            >
+                                Active
+                            </button>
+                            <button
+                                onClick={() => handleFilterChange("completed")}
+                                className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    filter === "completed" 
+                                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' 
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600'
+                                }`}
+                            >
+                                Completed
+                            </button>
+                        </div>
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                            Showing <span className="font-bold">
+                                {Math.min((currentPage - 1) * SESSIONS_PER_PAGE + 1, filteredSessions.length)}-{
+                                Math.min(currentPage * SESSIONS_PER_PAGE, filteredSessions.length)
+                            }</span> of <span className="font-bold">{filteredSessions.length}</span> sessions
+                        </div>
                     </div>
                 </Card>
             </div>
 
             {/* Sessions Table */}
-            {filteredSessions.length === 0 ? (
+            {currentSessions.length === 0 ? (
                 <Card>
                     <div className="p-8 text-center">
                         <MdAccessTime className="mx-auto mb-4 h-16 w-16 text-gray-400" />
@@ -421,8 +479,8 @@ const SessionsManagement = () => {
                     </div>
                 </Card>
             ) : (
-                <Card extra="w-full h-full px-6 pb-6">
-                    <div className="relative flex items-center justify-between pt-4">
+                <Card extra="w-full h-full px-4 pb-4">
+                    <div className="relative flex items-center justify-between pt-2 pb-1">
                         <div className="text-xl font-bold text-navy-700 dark:text-white">
                             Sessions Data
                         </div>
@@ -435,9 +493,10 @@ const SessionsManagement = () => {
                                     {columnsData.map((column, index) => (
                                         <th
                                             key={index}
-                                            className="border-b-[1px] border-gray-200 pt-4 pb-2 pr-4 text-start"
+                                            className="border-b-[1px] border-gray-200 pt-4 pb-2 px-2 text-start"
+                                            style={{ width: column.width ? `${column.width}px` : 'auto' }}
                                         >
-                                            <p className="text-sm font-bold text-gray-600 dark:text-white">
+                                            <p className="text-xs font-bold text-gray-600 dark:text-white truncate">
                                                 {column.Header}
                                             </p>
                                         </th>
@@ -445,12 +504,13 @@ const SessionsManagement = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredSessions.map((session, rowIndex) => (
+                                {currentSessions.map((session, rowIndex) => (
                                     <tr key={session.id || rowIndex} className="border-b border-gray-100">
                                         {columnsData.map((column, colIndex) => (
                                             <td
                                                 key={colIndex}
-                                                className="min-w-[150px] border-white/0 py-3 pr-4"
+                                                className="border-white/0 py-2 px-2 text-sm"
+                                                style={{ width: column.width ? `${column.width}px` : 'auto' }}
                                             >
                                                 {column.Cell ?
                                                     column.Cell({
@@ -468,6 +528,27 @@ const SessionsManagement = () => {
                     </div>
                 </Card>
             )}
+
+            {/* Pagination Controls */}
+            <div className="flex justify-between mt-4">
+                <button
+                    onClick={() => handlePageChange("prev")}
+                    disabled={currentPage === 1}
+                    className={`px-4 py-2 rounded-lg ${currentPage === 1 ? 'bg-gray-100 dark:bg-navy-700' : 'bg-brand-500 text-white'}`}
+                >
+                    Prev
+                </button>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                    Page {currentPage} of {totalPages}
+                </div>
+                <button
+                    onClick={() => handlePageChange("next")}
+                    disabled={currentPage === totalPages}
+                    className={`px-4 py-2 rounded-lg ${currentPage === totalPages ? 'bg-gray-100 dark:bg-navy-700' : 'bg-brand-500 text-white'}`}
+                >
+                    Next
+                </button>
+            </div>
 
             {/* Active Sessions Live Monitoring */}
             {activeSessions.length > 0 && (
