@@ -1,0 +1,33 @@
+{
+    "name": "gaming-parlour-backend",
+    "envs": [
+        {
+            "key": "DATABASE_URL",
+            "scope": "RUN_TIME",
+            "type": "string",
+            "required": true
+        },
+        {
+            "key": "SECRET_KEY",
+            "scope": "RUN_AND_BUILD_TIME",
+            "type": "string",
+            "required": true
+        },
+        {
+            "key": "ENVIRONMENT",
+            "value": "production",
+            "scope": "RUN_AND_BUILD_TIME"
+        },
+        {
+            "key": "DEBUG",
+            "value": "false",
+            "scope": "RUN_AND_BUILD_TIME"
+        },
+        {
+            "key": "FRONTEND_URL",
+            "scope": "RUN_TIME",
+            "type": "string",
+            "required": true
+        }
+    ]
+}

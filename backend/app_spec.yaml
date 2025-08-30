@@ -1,0 +1,36 @@
+name: gaming-parlour-backend
+services:
+- name: web
+  github:
+    branch: main  # or your branch name
+    repo: your-username/your-repo-name  # update with your repo details
+    deploy_on_push: true
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${db.DATABASE_URL}
+  - key: SECRET_KEY
+    scope: RUN_AND_BUILD_TIME
+    value: ${SECRET_KEY}
+  - key: ENVIRONMENT
+    value: production
+  - key: DEBUG
+    value: "false"
+  - key: FRONTEND_URL
+    value: ${FRONTEND_URL}
+  - key: RAZORPAY_KEY_ID
+    value: ${RAZORPAY_KEY_ID}
+  - key: RAZORPAY_KEY_SECRET
+    value: ${RAZORPAY_KEY_SECRET}
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  source_dir: backend
+  build_command: pip install -r requirements-prod.txt
+  run_command: gunicorn -w 4 -k uvicorn.workers.UvicornWorker main:app --bind :8080
+
+databases:
+- engine: PG
+  name: gameparlour-db
+  version: "14"
+  production: true
