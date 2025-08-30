@@ -1,0 +1,13 @@
+{
+  "root": ".",
+  "clean_urls": true,
+  "https_only": true,
+  "routes": {
+    "/**": "/index.html"
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
