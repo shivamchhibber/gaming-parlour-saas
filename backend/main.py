@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Request
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean
@@ -1171,20 +1171,26 @@ async def create_table(table: TableCreate, current_user: User = Depends(get_curr
     return db_table
 
 @app.get("/admin/tables")
-async def get_all_tables(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def get_all_tables(
+    search: str = None, 
+    current_user: User = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
     # Multi-tenant access control
-    if current_user.role == "super_admin":
-        # Super admin sees all tables across all organizations
-        tables = db.query(Table).filter(Table.is_active == 1).all()
-    else:
+    query = db.query(Table)
+    
+    if current_user.role != "super_admin":
         if not current_user.organization_id:
             raise HTTPException(status_code=400, detail="User not associated with any organization")
-        
-        # Organization users see only their organization's tables
-        tables = db.query(Table).filter(
-            Table.organization_id == current_user.organization_id,
-            Table.is_active == 1
-        ).all()
+        query = query.filter(Table.organization_id == current_user.organization_id)
+    
+    # Apply search filter if provided
+    if search:
+        search = f"%{search.lower()}%"
+        query = query.filter(Table.table_number.ilike(search))
+    
+    # Only return active tables
+    tables = query.filter(Table.is_active == 1).all()
     
     return tables
 
@@ -1210,16 +1216,70 @@ async def delete_table(table_id: int, current_user: User = Depends(get_current_u
     return {"message": "Table deleted successfully"}
 
 # User Routes
-@app.get("/table/{table_id}")
-async def get_table_info(table_id: int, db: Session = Depends(get_db)):
-    table = db.query(Table).filter(Table.id == table_id, Table.is_active == 1).first()
-    if not table:
-        raise HTTPException(status_code=404, detail="Table not found")
-    return table
+@app.get("/table/search")
+async def search_tables(
+    query: str = Query(..., min_length=1),
+    db: Session = Depends(get_db)
+):
+    """
+    Search for tables by partial match on table_number
+    Returns all tables where table_number contains the query string (case-insensitive)
+    """
+    tables = db.query(Table).filter(
+        Table.table_number.ilike(f"%{query}%"),
+        Table.is_active == 1
+    ).all()
+    
+    if not tables:
+        raise HTTPException(status_code=404, detail=f"No tables found matching '{query}'")
+    return tables
+
+@app.get("/table/{identifier}")
+async def get_table_info(
+    identifier: str, 
+    partial: bool = Query(False, description="Enable partial matching for table numbers"),
+    db: Session = Depends(get_db)
+):
+    # First try to parse as integer (table ID)
+    try:
+        table_id = int(identifier)
+        table = db.query(Table).filter(Table.id == table_id, Table.is_active == 1).first()
+        if table:
+            return table
+    except ValueError:
+        # Not a number, continue to table_number lookup
+        pass
+    
+    # Build the query for table number search
+    query = db.query(Table).filter(Table.is_active == 1)
+    
+    if partial:
+        # For partial matching, use LIKE with wildcards
+        search_pattern = f"%{identifier}%"
+        tables = query.filter(Table.table_number.ilike(search_pattern)).all()
+        
+        if not tables:
+            raise HTTPException(status_code=404, detail=f"No tables found matching '{identifier}'")
+        return tables
+    else:
+        # For exact matching (backward compatibility)
+        table = query.filter(Table.table_number.ilike(identifier)).first()
+        if not table:
+            raise HTTPException(status_code=404, detail=f"Table '{identifier}' not found")
+        return table
 
 @app.get("/table/lookup/{table_identifier}")
-async def get_table_by_identifier(table_identifier: str, db: Session = Depends(get_db)):
-    """Lookup table by either ID (numeric) or table_number (string)"""
+async def get_table_by_identifier(
+    table_identifier: str, 
+    prefix_search: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Lookup table by either:
+    - Exact ID (numeric)
+    - Exact table_number (string)
+    - Or prefix search on table_number (when prefix_search=True)
+    """
     
     # Try to parse as integer first (table ID)
     try:
@@ -1231,13 +1291,34 @@ async def get_table_by_identifier(table_identifier: str, db: Session = Depends(g
         # Not a number, continue to table_number lookup
         pass
     
-    # Search by table_number (string)
-    table = db.query(Table).filter(Table.table_number == table_identifier, Table.is_active == 1).first()
+    # Build query for table number search
+    query = db.query(Table).filter(Table.is_active == 1)
+    
+    if prefix_search:
+        # Use prefix search (case-insensitive)
+        query = query.filter(Table.table_number.ilike(f"{table_identifier}%"))
+    else:
+        # Use exact match (case-sensitive)
+        query = query.filter(Table.table_number == table_identifier)
+    
+    # Get the first matching table
+    table = query.first()
     if table:
         return table
     
-    # Not found by either method
-    raise HTTPException(status_code=404, detail=f"Table '{table_identifier}' not found")
+    # If prefix search found no results, try exact match if we haven't already
+    if prefix_search and not table:
+        table = db.query(Table).filter(
+            Table.table_number == table_identifier, 
+            Table.is_active == 1
+        ).first()
+        if table:
+            return table
+    
+    raise HTTPException(
+        status_code=404, 
+        detail=f"Table '{table_identifier}' not found" + (" or multiple matches found" if prefix_search else "")
+    )
 
 @app.post("/session/start")
 async def start_session(user_details: UserDetails, db: Session = Depends(get_db)):

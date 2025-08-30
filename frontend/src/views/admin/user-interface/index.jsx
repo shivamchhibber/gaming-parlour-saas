@@ -7,6 +7,8 @@ import InputField from "components/fields/InputField";
 
 const UserInterface = () => {
     const [tables, setTables] = useState([]);
+    const [filteredTables, setFilteredTables] = useState([]);
+    const [searchQuery, setSearchQuery] = useState("");
     const [selectedTable, setSelectedTable] = useState(null);
     const [userDetails, setUserDetails] = useState({
         name: "",
@@ -25,14 +27,61 @@ const UserInterface = () => {
         return () => clearInterval(timer);
     }, []);
 
-    const fetchTables = async () => {
+    const fetchTables = async (search = "") => {
         try {
-            const response = await axios.get("http://localhost:8000/admin/tables");
-            setTables(response.data);
+            // If search is empty, fetch all tables
+            if (!search.trim()) {
+                const response = await axios.get("http://localhost:8000/admin/tables");
+                setTables(response.data);
+                setFilteredTables(response.data);
+                return;
+            }
+            
+            // For search queries, use the lookup endpoint with prefix search
+            try {
+                const response = await axios.get(`http://localhost:8000/table/lookup/${encodeURIComponent(search)}`, {
+                    params: { prefix_search: true }
+                });
+                // If we get a single table, put it in an array
+                const results = Array.isArray(response.data) ? response.data : [response.data];
+                setFilteredTables(results);
+            } catch (error) {
+                if (error.response?.status === 404) {
+                    // No tables found with this prefix
+                    setFilteredTables([]);
+                } else {
+                    console.error("Error searching tables:", error);
+                    // Fallback to client-side filtering if there's an error
+                    const filtered = tables.filter(table => 
+                        table.table_number.toLowerCase().includes(search.toLowerCase())
+                    );
+                    setFilteredTables(filtered);
+                }
+            }
         } catch (error) {
-            console.error("Error fetching tables:", error);
+            console.error("Error in fetchTables:", error);
+            // Fallback to client-side filtering if there's an error
+            if (search) {
+                const filtered = tables.filter(table => 
+                    table.table_number.toLowerCase().includes(search.toLowerCase())
+                );
+                setFilteredTables(filtered);
+            }
         }
     };
+
+    // Handle search input with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery.trim() === "") {
+                setFilteredTables(tables);
+            } else {
+                fetchTables(searchQuery);
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleTableSelect = async (table) => {
         setSelectedTable(table);
@@ -156,9 +205,40 @@ const UserInterface = () => {
                             <h2 className="mb-2 text-xl font-bold text-navy-700 dark:text-white">
                                 Scan QR Code or Select Table
                             </h2>
-                            <p className="text-gray-600">
+                            <p className="text-gray-600 mb-4">
                                 In real usage, users would scan the QR code on their table. For testing, select a table below:
                             </p>
+                            <div className="mx-auto max-w-md relative">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Start typing to search tables..."
+                                        className="w-full rounded-lg border-2 border-gray-200 p-3 pl-10 text-gray-800 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 focus:outline-none transition-all duration-200"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        autoComplete="off"
+                                        autoFocus
+                                    />
+                                    <div className="absolute left-3 top-3.5 text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </div>
+                                    {searchQuery && (
+                                        <button 
+                                            onClick={() => setSearchQuery("")}
+                                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
+                                <p className="mt-2 text-xs text-gray-500 text-center">
+                                    Search by table number (e.g., "A1", "B2", etc.)
+                                </p>
+                            </div>
                         </div>
 
                         {tables.length === 0 ? (
@@ -167,27 +247,45 @@ const UserInterface = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {tables.map((table) => (
-                                    <div
-                                        key={table.id}
-                                        onClick={() => handleTableSelect(table)}
-                                        className="cursor-pointer rounded-lg border-2 border-gray-200 p-4 transition-all hover:border-brand-500 hover:shadow-lg"
-                                    >
-                                        <div className="text-center">
-                                            <h3 className="mb-2 text-lg font-bold text-navy-700">
-                                                Table {table.table_number}
-                                            </h3>
-                                            <p className="mb-3 text-brand-500 font-semibold">
-                                                ₹{table.rate_per_hour}/hour
-                                            </p>
-                                            <img
-                                                src={table.qr_code}
-                                                alt={`QR Code for Table ${table.table_number}`}
-                                                className="mx-auto h-24 w-24 rounded"
-                                            />
+                                {filteredTables.length === 0 ? (
+                                    <div className="col-span-3 py-8 text-center">
+                                        <div className="mx-auto w-16 h-16 mb-4 text-gray-300">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
                                         </div>
+                                        <h3 className="text-lg font-medium text-gray-700">No tables found</h3>
+                                        <p className="text-gray-500 mt-1">No tables match "{searchQuery}"</p>
+                                        <button 
+                                            onClick={() => setSearchQuery("")}
+                                            className="mt-3 text-sm text-brand-600 hover:text-brand-700 font-medium"
+                                        >
+                                            Clear search and show all tables
+                                        </button>
                                     </div>
-                                ))}
+                                ) : (
+                                    filteredTables.map((table) => (
+                                        <div
+                                            key={table.id}
+                                            onClick={() => handleTableSelect(table)}
+                                            className="group cursor-pointer rounded-xl border-2 border-gray-200 p-5 transition-all hover:border-brand-500 hover:shadow-lg hover:shadow-brand-100 hover:-translate-y-0.5"
+                                        >
+                                            <div className="text-center">
+                                                <h3 className="mb-2 text-lg font-bold text-navy-700">
+                                                    Table {table.table_number}
+                                                </h3>
+                                                <p className="mb-3 text-brand-500 font-semibold">
+                                                    ₹{table.rate_per_hour}/hour
+                                                </p>
+                                                <img
+                                                    src={table.qr_code}
+                                                    alt={`QR Code for Table ${table.table_number}`}
+                                                    className="mx-auto h-24 w-24 rounded"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         )}
                     </div>

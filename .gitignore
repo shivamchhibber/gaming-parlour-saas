@@ -41,6 +41,12 @@ pids
 *.seed
 *.pid.lock
 
+# Database files
+game_parlour.db
+*.db
+*.sqlite
+*.sqlite3
+
 # Coverage directory used by tools like istanbul
 coverage/
 
