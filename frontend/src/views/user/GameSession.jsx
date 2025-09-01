@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { MdPlayArrow, MdStop, MdAccessTime, MdAttachMoney, MdPayment, MdSkipNext } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
 import authService from "services/authService";
 import PaymentModal from "components/modal/PaymentModal";
 import Toast from "components/notifications/Toast";
@@ -24,12 +26,12 @@ const GameSession = () => {
 
   const fetchSessionInfo = useCallback(async () => {
     try {
-      const sessionResponse = await axios.get(`http://localhost:8000/session/${sessionId}`);
+      const sessionResponse = await axios.get(buildApiUrl(`${API_ENDPOINTS.SESSION_DETAILS}/${sessionId}`));
       const sessionData = sessionResponse.data;
 
       if (sessionData.status === "completed") {
         // Session already ended, show bill
-        const tableResponse = await axios.get(`http://localhost:8000/table/${sessionData.table_id}`);
+        const tableResponse = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${sessionData.table_id}`));
         setTable(tableResponse.data);
         setSession(sessionData);
         setBill({
@@ -44,7 +46,7 @@ const GameSession = () => {
         });
       } else {
         // Active session
-        const tableResponse = await axios.get(`http://localhost:8000/table/${sessionData.table_id}`);
+        const tableResponse = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${sessionData.table_id}`));
         setTable(tableResponse.data);
         setSession(sessionData);
       }
@@ -78,7 +80,7 @@ const GameSession = () => {
   const handleEndSession = async () => {
     setEnding(true);
     try {
-      const response = await axios.post("http://localhost:8000/session/end", {
+      const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_END), {
         session_id: sessionId,
       });
       setBill(response.data);
@@ -115,7 +117,7 @@ const GameSession = () => {
       sessionStorage.setItem('currentSessionId', sessionId);
 
       // Create payment link via public backend endpoint
-      const response = await axios.post(`http://localhost:8000/public/payment/session`, {
+      const response = await axios.post(buildApiUrl(API_ENDPOINTS.PAYMENT_SESSION), {
         session_id: sessionId
       });
 
@@ -186,7 +188,7 @@ const GameSession = () => {
   const checkPaymentStatus = async () => {
     setCheckingPayment(true);
     try {
-      const response = await axios.get(`http://localhost:8000/session/${sessionId}`);
+      const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.SESSION_DETAILS}/${sessionId}`));
       const sessionData = response.data;
 
       // If payment status changed to paid, redirect immediately
@@ -217,7 +219,7 @@ const GameSession = () => {
     setShowConfirmModal(false);
 
     // Mark session as unpaid before closing
-    axios.post(`http://localhost:8000/session/mark-unpaid`, {
+    axios.post(buildApiUrl(API_ENDPOINTS.SESSION_MARK_UNPAID), {
       session_id: sessionId
     }).catch(error => {
       console.error('Failed to mark session as unpaid:', error);

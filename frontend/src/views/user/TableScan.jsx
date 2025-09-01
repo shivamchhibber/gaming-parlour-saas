@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { MdQrCodeScanner, MdPlayArrow, MdStop, MdAccessTime, MdAttachMoney } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
+import Toast from "components/notifications/Toast";
 
 const TableScan = () => {
     const { tableId } = useParams();
@@ -9,20 +12,20 @@ const TableScan = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    const fetchTableInfo = useCallback(async () => {
+    const fetchTableInfo = async () => {
         try {
-            const response = await axios.get(`http://localhost:8000/table/${tableId}`);
+            const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${tableId}`));
             setTable(response.data);
             setLoading(false);
         } catch (error) {
             setError("Table not found or invalid QR code");
             setLoading(false);
         }
-    }, [tableId]);
+    };
 
     useEffect(() => {
         fetchTableInfo();
-    }, [fetchTableInfo]);
+    }, [tableId]);
 
     const handleStartSession = () => {
         // Check if player is already logged in

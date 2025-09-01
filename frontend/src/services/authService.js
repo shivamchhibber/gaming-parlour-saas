@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL, API_ENDPOINTS, buildApiUrl } from '../config/api';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -64,14 +63,14 @@ export const authService = {
 
   // Login
   async login(credentials) {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, credentials);
+    const response = await axios.post(buildApiUrl(API_ENDPOINTS.LOGIN), credentials);
     const token = response.data.access_token;
 
     // Store token
     localStorage.setItem('access_token', token);
 
     // Get user info
-    const userResponse = await axios.get(`${API_BASE_URL}/auth/me`, {
+    const userResponse = await axios.get(buildApiUrl(API_ENDPOINTS.ME), {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -122,24 +122,13 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Game Parlour Management System")
 
 # CORS middleware
-if settings.cors_allow_all_origins:
-    # Allow all origins for production (use with caution)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # Use specific allowed origins from settings
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.get_allowed_origins(),
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.get_allowed_origins(),  # From settings
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Pydantic models
 class UserLogin(BaseModel):

@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { MdPlayArrow, MdStop, MdAccessTime, MdAttachMoney } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
+import Toast from "components/notifications/Toast";
 
 const UserDetails = () => {
   const { tableId } = useParams();
@@ -14,16 +17,16 @@ const UserDetails = () => {
   });
   const [error, setError] = useState("");
 
-  const fetchTableInfo = useCallback(async () => {
+  const fetchTableInfo = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/table/${tableId}`);
+      const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${tableId}`));
       setTable(response.data);
       setLoading(false);
     } catch (error) {
       setError("Table not found");
       setLoading(false);
     }
-  }, [tableId]);
+  };
 
   useEffect(() => {
     // Redirect to login if accessed directly - we now require authentication
@@ -36,7 +39,7 @@ const UserDetails = () => {
     }
 
     fetchTableInfo();
-  }, [fetchTableInfo, navigate, tableId]);
+  }, [tableId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +47,7 @@ const UserDetails = () => {
     setError("");
 
     try {
-      const response = await axios.post("http://localhost:8000/session/start", {
+      const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_START), {
         name: formData.name,
         phone: formData.phone,
         table_id: parseInt(tableId),

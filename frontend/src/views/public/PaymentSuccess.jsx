@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { MdCheckCircle, MdAccessTime, MdAttachMoney } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
+import Toast from "components/notifications/Toast";
 
 const PaymentSuccess = () => {
     const [searchParams] = useSearchParams();
@@ -9,7 +12,7 @@ const PaymentSuccess = () => {
     const verifyPayment = async (sessionId) => {
         try {
             console.log('Verifying payment for session:', sessionId);
-            await axios.post('http://localhost:8000/session/verify-payment', {
+            await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_VERIFY_PAYMENT), {
                 session_id: sessionId
             });
             console.log('✅ Payment verified successfully');

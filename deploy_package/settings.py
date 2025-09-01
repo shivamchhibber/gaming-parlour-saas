@@ -18,10 +18,7 @@ class Settings(BaseSettings):
     # App Settings
     environment: str = "development"
     debug: bool = True
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://d2sayrwh84bhr5.cloudfront.net"
-    
-    # CORS Settings
-    cors_allow_all_origins: bool = False  # Set to True for production if needed
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     
     # Email
     smtp_host: str = "smtp.gmail.com"
@@ -30,7 +27,7 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     
     # Frontend
-    frontend_url: str = "https://d2sayrwh84bhr5.cloudfront.net"
+    frontend_url: str = "http://localhost:3000"
     
     class Config:
         env_file = ".env"

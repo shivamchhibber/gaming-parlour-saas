@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { MdGames, MdAccountCircle, MdTableChart, MdAccessTime } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
+import Toast from "components/notifications/Toast";
 
 const QuickStart = () => {
   const { tableId } = useParams();
@@ -14,7 +16,7 @@ const QuickStart = () => {
 
   const fetchTableInfo = useCallback(async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/table/${tableId}`);
+              const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${tableId}`));
       setTable(response.data);
     } catch (error) {
       setError("Table not found or invalid QR code");
@@ -43,7 +45,7 @@ const QuickStart = () => {
       // Get player name from previous sessions or use phone
       let playerName = player.name || `Player ${player.phone.slice(-4)}`;
       
-      const response = await axios.post("http://localhost:8000/session/start", {
+              const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_START), {
         name: playerName,
         phone: player.phone,
         table_id: parseInt(tableId),

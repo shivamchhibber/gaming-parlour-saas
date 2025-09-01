@@ -15,6 +15,7 @@ import {
     MdSkipNext
 } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
 import PaymentModal from "components/modal/PaymentModal";
 import Toast from "components/notifications/Toast";
 import ConfirmationModal from "components/modal/ConfirmationModal";
@@ -84,7 +85,7 @@ const PlayerDashboard = () => {
             setLoading(true);
 
             // Fetch real data from API
-            const response = await axios.get(`http://localhost:8000/api/player/sessions/${phoneNumber}`);
+            const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.PLAYER_SESSIONS}/${phoneNumber}`));
             console.log('✅ Player sessions fetched:', response.data);
             setSessions(response.data.sessions || []);
 
@@ -116,7 +117,7 @@ const PlayerDashboard = () => {
     const checkActiveSession = async (phoneNumber) => {
         try {
             // Check if there's an active session for this player
-            const response = await axios.get(`http://localhost:8000/api/player/active-session/${phoneNumber}`);
+            const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.PLAYER_ACTIVE_SESSION}/${phoneNumber}`));
             if (response.data.active_session) {
                 setActiveSession(response.data.active_session);
             }
@@ -152,7 +153,7 @@ const PlayerDashboard = () => {
                 return;
             }
 
-            const response = await axios.get(`http://localhost:8000/table/${tableIdString}`);
+            const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${tableIdString}`));
             setTableInfo(response.data);
 
             // If coming from QR scan, show special message
@@ -191,7 +192,7 @@ const PlayerDashboard = () => {
 
         setStartingSession(true);
         try {
-            const response = await axios.post("http://localhost:8000/session/start", {
+            const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_START), {
                 name: playerData.name || `Player ${playerData.phone.slice(-4)}`,
                 phone: playerData.phone,
                 table_id: parseInt(tableId),
@@ -222,7 +223,7 @@ const PlayerDashboard = () => {
         if (!activeSession) return;
 
         try {
-            const response = await axios.post("http://localhost:8000/session/end", {
+            const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_END), {
                 session_id: activeSession.session_id,
             });
 
@@ -246,7 +247,7 @@ const PlayerDashboard = () => {
 
         setPaymentLoading(true);
         try {
-            const response = await axios.post(`http://localhost:8000/public/payment/session`, {
+            const response = await axios.post(buildApiUrl(API_ENDPOINTS.PAYMENT_SESSION), {
                 session_id: bill.session_id
             });
 
@@ -281,7 +282,7 @@ const PlayerDashboard = () => {
 
     const handleSkipPayment = () => {
         setConfirmAction(() => () => {
-            axios.post(`http://localhost:8000/session/mark-unpaid`, {
+            axios.post(buildApiUrl(API_ENDPOINTS.SESSION_MARK_UNPAID), {
                 session_id: bill.session_id
             }).then(() => {
                 setBill(null);

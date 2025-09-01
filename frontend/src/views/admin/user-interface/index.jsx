@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { MdQrCodeScanner, MdPlayArrow, MdStop, MdAccessTime, MdAttachMoney, MdSearch, MdRefresh, MdPerson } from "react-icons/md";
 import axios from "axios";
-import { MdQrCodeScanner, MdPerson, MdAccessTime, MdAttachMoney } from "react-icons/md";
+import { buildApiUrl, API_ENDPOINTS } from "../../../config/api";
+import Toast from "components/notifications/Toast";
+import ConfirmationModal from "components/modal/ConfirmationModal";
 
 import Card from "components/card";
 import InputField from "components/fields/InputField";
@@ -31,15 +35,15 @@ const UserInterface = () => {
         try {
             // If search is empty, fetch all tables
             if (!search.trim()) {
-                const response = await axios.get("http://localhost:8000/admin/tables");
+                const response = await axios.get(buildApiUrl(API_ENDPOINTS.ADMIN_TABLES));
                 setTables(response.data);
                 setFilteredTables(response.data);
                 return;
             }
-            
+
             // For search queries, use the lookup endpoint with prefix search
             try {
-                const response = await axios.get(`http://localhost:8000/table/lookup/${encodeURIComponent(search)}`, {
+                const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_LOOKUP}/${encodeURIComponent(search)}`), {
                     params: { prefix_search: true }
                 });
                 // If we get a single table, put it in an array
@@ -52,7 +56,7 @@ const UserInterface = () => {
                 } else {
                     console.error("Error searching tables:", error);
                     // Fallback to client-side filtering if there's an error
-                    const filtered = tables.filter(table => 
+                    const filtered = tables.filter(table =>
                         table.table_number.toLowerCase().includes(search.toLowerCase())
                     );
                     setFilteredTables(filtered);
@@ -62,7 +66,7 @@ const UserInterface = () => {
             console.error("Error in fetchTables:", error);
             // Fallback to client-side filtering if there's an error
             if (search) {
-                const filtered = tables.filter(table => 
+                const filtered = tables.filter(table =>
                     table.table_number.toLowerCase().includes(search.toLowerCase())
                 );
                 setFilteredTables(filtered);
@@ -92,7 +96,7 @@ const UserInterface = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await axios.post("http://localhost:8000/session/start", {
+            const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_START), {
                 name: userDetails.name,
                 phone: userDetails.phone,
                 table_id: selectedTable.id,
@@ -114,7 +118,7 @@ const UserInterface = () => {
     const handleEndSession = async () => {
         setLoading(true);
         try {
-            const response = await axios.post("http://localhost:8000/session/end", {
+            const response = await axios.post(buildApiUrl(API_ENDPOINTS.SESSION_END), {
                 session_id: currentSession.session_id,
             });
 
@@ -172,8 +176,8 @@ const UserInterface = () => {
                             <div key={stepNum} className="flex items-center">
                                 <div
                                     className={`flex h-10 w-10 items-center justify-center rounded-full ${step >= stepNum
-                                            ? "bg-brand-500 text-white"
-                                            : "bg-gray-200 text-gray-500"
+                                        ? "bg-brand-500 text-white"
+                                        : "bg-gray-200 text-gray-500"
                                         }`}
                                 >
                                     {stepNum}
@@ -225,7 +229,7 @@ const UserInterface = () => {
                                         </svg>
                                     </div>
                                     {searchQuery && (
-                                        <button 
+                                        <button
                                             onClick={() => setSearchQuery("")}
                                             className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition-colors"
                                         >
@@ -256,7 +260,7 @@ const UserInterface = () => {
                                         </div>
                                         <h3 className="text-lg font-medium text-gray-700">No tables found</h3>
                                         <p className="text-gray-500 mt-1">No tables match "{searchQuery}"</p>
-                                        <button 
+                                        <button
                                             onClick={() => setSearchQuery("")}
                                             className="mt-3 text-sm text-brand-600 hover:text-brand-700 font-medium"
                                         >

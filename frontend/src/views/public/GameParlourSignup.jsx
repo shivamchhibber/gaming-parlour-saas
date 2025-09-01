@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { MdBusiness, MdPerson, MdEmail, MdPhone, MdLocationOn, MdDescription } from "react-icons/md";
 import axios from "axios";
+import { buildApiUrl, API_ENDPOINTS } from "../../config/api";
+import Toast from "components/notifications/Toast";
 
 const GameParlourSignup = () => {
     const navigate = useNavigate();
@@ -122,7 +125,7 @@ const GameParlourSignup = () => {
                 marketing_consent: formData.marketing_consent
             };
 
-            const response = await axios.post("http://localhost:8000/signup/game-parlour", signupData);
+            const response = await axios.post(buildApiUrl(API_ENDPOINTS.GAME_PARLOUR_SIGNUP), signupData);
 
             setSignupResult(response.data);
             setSignupComplete(true);
