@@ -19,7 +19,7 @@ jobs:
 
     - name: Deploy to Droplet
       run: |
-        sshpass -p '${{ secrets.DROPLET_PASSWORD }}' ssh -o StrictHostChecking=no root@${{ secrets.DROPLET_IP }} 'cd /var/www/gaming-parlour-saas && git pull && \
+        sshpass -p '${{ secrets.DROPLET_PASSWORD }}' ssh -o 'StrictHostKeyChecking=no' root@${{ secrets.DROPLET_IP }} 'cd /var/www/gaming-parlour-saas && git pull && \
         cd backend && \
         docker-compose down && \
         docker-compose up -d --build'
