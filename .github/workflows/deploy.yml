@@ -1,0 +1,25 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ shivam-demo-branch ]  # Deploy on push to shivam-demo-branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install sshpass
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sshpass
+
+    - name: Deploy to Droplet
+      run: |
+        sshpass -p '${{ secrets.DROPLET_PASSWORD }}' ssh -o StrictHostChecking=no root@${{ secrets.DROPLET_IP }} 'cd /var/www/gaming-parlour-saas && git pull && \
+        cd backend && \
+        docker-compose down && \
+        docker-compose up -d --build'

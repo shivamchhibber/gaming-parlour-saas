@@ -1,6 +1,52 @@
-# DigitalOcean App Platform Deployment Guide
+# Gaming Parlour SaaS Deployment Guide
 
 This guide will walk you through deploying the Gaming Parlour SaaS backend to DigitalOcean's App Platform.
+
+# CI/CD Setup with GitHub Actions
+
+## Prerequisites for CI/CD
+
+1. SSH access to your DigitalOcean Droplet
+2. A GitHub repository for your project
+3. GitHub Actions enabled for your repository
+
+## Setting Up CI/CD
+
+### 1. Generate SSH Key Pair
+
+On your local machine, generate a new SSH key pair if you don't have one:
+
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
+
+### 2. Add Public Key to Droplet
+
+1. Copy the public key (`~/.ssh/id_ed25519.pub` or `~/.ssh/id_rsa.pub`)
+2. SSH into your Droplet:
+   ```bash
+   ssh root@YOUR_DROPLET_IP
+   ```
+3. Add the public key to `~/.ssh/authorized_keys`
+
+### 3. Add Secrets to GitHub Repository
+
+Go to your GitHub repository > Settings > Secrets > Actions
+
+Add these secrets:
+- `DROPLET_IP`: Your Droplet's IP address (167.71.229.81)
+- `SSH_PRIVATE_KEY`: The private key that matches the public key you added to the Droplet
+
+### 4. Push to Trigger Deployment
+
+Now, whenever you push to the `main` branch, the GitHub Action will automatically:
+1. Connect to your Droplet via SSH
+2. Pull the latest changes
+3. Rebuild and restart the Docker containers
+
+---
+
+# DigitalOcean App Platform Deployment Guide
 
 ## Prerequisites
 
