@@ -19,8 +19,14 @@ jobs:
 
     - name: Deploy to Droplet
       run: |
-        sshpass -p '${{ secrets.DROPLET_PASSWORD }}' ssh -o 'StrictHostKeyChecking=no' root@${{ secrets.DROPLET_IP }} 'mkdir -p /var/www/gaming-parlour-saas && cd /var/www/gaming-parlour-saas && \
-        if [ ! -d .git ]; then git clone https://github.com/shivamchhibber/gaming-parlour-saas.git .; fi && \
-        git pull && cd backend && \
-        docker-compose down && \
-        docker-compose up -d --build'
+        sshpass -p '${{ secrets.DROPLET_PASSWORD }}' ssh -o 'StrictHostKeyChecking=no' root@${{ secrets.DROPLET_IP }} '\
+          mkdir -p /var/www/gaming-parlour-saas && \
+          cd /var/www/gaming-parlour-saas && \
+          if [ ! -d .git ]; then \
+            git clone https://github.com/shivamchhibber/gaming-parlour-saas.git .; \
+          fi && \
+          git pull && \
+          cd backend && \
+          python -m pip install -r requirements.txt && \
+          python manage.py migrate && \
+          systemctl restart gunicorn'
