@@ -5,7 +5,7 @@
 Your backend now allows the following origins:
 - `http://localhost:3000` (local development)
 - `http://127.0.0.1:3000` (local development)
-- `https://d2sayrwh84bhr5.cloudfront.net` (your CloudFront frontend)
+- `https://gp.botarmy.tech` (production frontend)
 
 ## If CORS Issues Persist
 
@@ -37,7 +37,7 @@ ssh root@167.71.229.81
 nano /root/game-parlour-backend/.env
 
 # Update this line to include your domain:
-ALLOWED_ORIGINS=https://d2sayrwh84bhr5.cloudfront.net,https://yourdomain.com
+ALLOWED_ORIGINS=https://gp.botarmy.tech,http://localhost:3000,http://127.0.0.1:3000
 
 # Restart the service
 systemctl restart game-parlour.service
@@ -48,7 +48,7 @@ systemctl restart game-parlour.service
 Test if CORS is working:
 ```bash
 # Test from your local machine
-curl -H "Origin: https://d2sayrwh84bhr5.cloudfront.net" \
+curl -H "Origin: https://gp.botarmy.tech" \
      -H "Access-Control-Request-Method: GET" \
      -H "Access-Control-Request-Headers: X-Requested-With" \
      -X OPTIONS \
@@ -58,7 +58,7 @@ curl -H "Origin: https://d2sayrwh84bhr5.cloudfront.net" \
 ## Expected Response
 
 If CORS is working, you should see:
-- `Access-Control-Allow-Origin: https://d2sayrwh84bhr5.cloudfront.net`
+- `Access-Control-Allow-Origin: https://gp.botarmy.tech`
 - `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`
 - `Access-Control-Allow-Headers: *`
 
