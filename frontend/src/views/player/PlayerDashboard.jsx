@@ -119,7 +119,28 @@ const PlayerDashboard = () => {
             // Check if there's an active session for this player
             const response = await axios.get(buildApiUrl(`${API_ENDPOINTS.PLAYER_ACTIVE_SESSION}/${phoneNumber}`));
             if (response.data.active_session) {
-                setActiveSession(response.data.active_session);
+                const activeSession = response.data.active_session;
+                
+                // Fetch table details for the active session
+                try {
+                    const tableResponse = await axios.get(buildApiUrl(`${API_ENDPOINTS.TABLE_DETAILS}/${activeSession.table_id}`));
+                    // Update session with table info
+                    setActiveSession({
+                        ...activeSession,
+                        table_number: tableResponse.data.table_number,
+                        rate_per_hour: tableResponse.data.rate_per_hour
+                    });
+                    
+                    // Also update tableInfo for the active session
+                    setTableInfo({
+                        table_number: tableResponse.data.table_number,
+                        rate_per_hour: tableResponse.data.rate_per_hour
+                    });
+                } catch (tableError) {
+                    console.error('Error fetching table details:', tableError);
+                    // Still set the active session even if table fetch fails
+                    setActiveSession(activeSession);
+                }
             }
         } catch (error) {
             // No active session found
@@ -198,8 +219,15 @@ const PlayerDashboard = () => {
                 table_id: parseInt(tableId),
             });
 
-            setActiveSession(response.data);
-            setTableInfo(null);
+            // Create a new session object with the current table info
+            const newSession = {
+                ...response.data,
+                table_number: tableInfo.table_number,
+                rate_per_hour: tableInfo.rate_per_hour
+            };
+
+            setActiveSession(newSession);
+            // Don't clear tableInfo yet, we need it for the active session view
             setTableId("");
             setActiveTab('active');
 
@@ -308,11 +336,11 @@ const PlayerDashboard = () => {
     };
 
     const calculateCurrentCharge = () => {
-        if (!activeSession || !tableInfo) return 0;
+        if (!activeSession) return 0;
         const start = new Date(activeSession.start_time);
         const diff = currentTime - start;
         const hours = diff / (1000 * 60 * 60);
-        return (hours * (tableInfo.rate_per_hour || 240)).toFixed(2);
+        return (hours * (activeSession.rate_per_hour || 240)).toFixed(2);
     };
 
     const handleLogout = () => {
