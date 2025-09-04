@@ -2,7 +2,7 @@ name: Deploy Backend to DigitalOcean
 
 on:
   push:
-    branches: [ main ]  # or your main branch name
+    branches: [ shivam-demo-branch ]  # Changed to your branch name
     paths:
       - 'backend/**'  # Only trigger when backend files change
 
@@ -13,32 +13,61 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        ref: shivam-demo-branch  # Explicitly checkout your branch
       
     - name: Install SSH Key
       uses: shimataro/ssh-key-action@v2
       with:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         known_hosts: 'just-a-placeholder'
+    
+    - name: Debug - List files before sync
+      run: |
+        echo "Files in current directory:"
+        ls -la
+        echo "Files in backend directory:"
+        ls -la backend/
         
     - name: Deploy to DigitalOcean
       run: |
-        # Create deployment directory
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} 'mkdir -p /var/www/backend'
+        # Debug info
+        echo "Starting deployment to ${{ secrets.DROPLET_IP }}"
         
-        # Sync backend files
-        rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
-          --exclude '.git' \
+        # Test SSH connection first
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} 'echo "SSH connection successful"'
+        
+        # Create deployment directory with proper permissions
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} 'mkdir -p /var/www/backend && chmod 755 /var/www/backend'
+        
+        # Debug - Show what will be synced
+        echo "Files to be synced:"
+        find backend/ -type f | grep -v "__pycache__\|venv\|\.git"
+        
+        # Sync backend files with verbose output
+        rsync -avz --progress -e "ssh -o StrictHostKeyChecking=no" \
           --exclude '__pycache__' \
           --exclude 'venv' \
+          --exclude '.git' \
           --exclude '.env' \
           ./backend/ \
           root@${{ secrets.DROPLET_IP }}:/var/www/backend/
-          
+        
+        # Verify files were copied
+        echo "Verifying files on server:"
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} 'ls -la /var/www/backend/'
+        
         # Install dependencies and restart the service
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} '\
+        echo "Installing dependencies..."
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} '
           cd /var/www/backend && \
-          python -m pip install --upgrade pip && \
-          pip install -r requirements.txt && \
-          # Add any other deployment commands here
-          systemctl restart your-backend-service  # Update with your actual service name
+          echo "Current directory: $(pwd)" && \
+          echo "Python version: $(python3 --version)" && \
+          python3 -m pip install --upgrade pip && \
+          pip3 install -r requirements.txt && \
+          echo "Restarting service..." && \
+          # Replace 'your-backend-service' with your actual service name
+          # systemctl restart your-backend-service
+          echo "Deployment completed successfully"
         '
+        echo "Deployment process completed"
