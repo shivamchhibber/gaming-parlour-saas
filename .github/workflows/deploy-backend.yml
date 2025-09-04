@@ -1,0 +1,44 @@
+name: Deploy Backend to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]  # or your main branch name
+    paths:
+      - 'backend/**'  # Only trigger when backend files change
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Install SSH Key
+      uses: shimataro/ssh-key-action@v2
+      with:
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        known_hosts: 'just-a-placeholder'
+        
+    - name: Deploy to DigitalOcean
+      run: |
+        # Create deployment directory
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} 'mkdir -p /var/www/backend'
+        
+        # Sync backend files
+        rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+          --exclude '.git' \
+          --exclude '__pycache__' \
+          --exclude 'venv' \
+          --exclude '.env' \
+          ./backend/ \
+          root@${{ secrets.DROPLET_IP }}:/var/www/backend/
+          
+        # Install dependencies and restart the service
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.DROPLET_IP }} '\
+          cd /var/www/backend && \
+          python -m pip install --upgrade pip && \
+          pip install -r requirements.txt && \
+          # Add any other deployment commands here
+          systemctl restart your-backend-service  # Update with your actual service name
+        '
